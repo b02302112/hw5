@@ -1,0 +1,159 @@
+---
+title: "作業五：文字雲＿PTT IA版"
+author: "B02302112 政治四 黃馨儀"
+date: "2017/5/29"
+output: html_document
+---
+
+##選擇想製作的網頁
+
+```{r}
+rm(list=ls(all.names = TRUE))
+#install.packages("http://download.r-forge.r-project.org/src/contrib/tmcn_0.1-4.tar.gz", repos = NULL, type = "source")
+library(tmcn)
+#install.packages("rvest")
+library(rvest)
+
+URL = "https://www.ptt.cc/bbs/IA/index.html"
+html = read_html(URL)
+title = html_nodes(html, "a")
+href = html_attr(title, "href")
+data = data.frame(title = toUTF8(html_text(title)), href = href)
+#View(data)
+```
+
+## 擷取內容--匯出成mydata文字檔
+
+```{r}
+getContent <- function(href)
+{
+  subURL = paste0("http://www.ptt.cc", href)
+  subhtml = read_html(subURL)
+  content = html_nodes(subhtml, "div#main-content.bbs-screen.bbs-content")
+  return(toUTF8(html_text(content)))
+}
+#practice
+#getContent(data$href[14])
+#clean
+#data = data[-c(1:10),]
+#getContent(data$href[alltext])
+#allText = sapply(data$href, getContent)
+#allText
+#write.table(allText, "mydata.txt")
+```
+
+
+## 開始製作文字雲--手動刪除贅字
+
+```{r}
+rm(list=ls(all.names = TRUE))
+library(NLP)
+library(tm)
+library(jiebaRD)
+library(jiebaR)
+library(RColorBrewer)
+library(wordcloud)
+filenames <- list.files(getwd(), pattern="*.txt")
+files <- lapply(filenames, readLines)
+docs <- Corpus(VectorSource(files)) 
+#Corpus是一種文字檔資料格式--文本
+#移除可能有問題的符號-Corpus文本清理與改寫
+toSpace <- content_transformer(function(x, pattern) {
+  return (gsub(pattern, " ", x))
+}
+)
+docs <- tm_map(docs, toSpace, "的")
+docs <- tm_map(docs, toSpace, "發信站")
+docs <- tm_map(docs, toSpace, "文章")
+docs <- tm_map(docs, toSpace, "作者")
+docs <- tm_map(docs, toSpace, "推")
+docs <- tm_map(docs, toSpace, "了")
+docs <- tm_map(docs, toSpace, "不")
+docs <- tm_map(docs, toSpace, "也")
+docs <- tm_map(docs, toSpace, "都")
+docs <- tm_map(docs, toSpace, "在")
+docs <- tm_map(docs, toSpace, "有")
+docs <- tm_map(docs, toSpace, "就")
+docs <- tm_map(docs, toSpace, "會")
+docs <- tm_map(docs, toSpace, "跟")
+docs <- tm_map(docs, toSpace, "沒")
+docs <- tm_map(docs, toSpace, "到")
+docs <- tm_map(docs, toSpace, "為")
+docs <- tm_map(docs, toSpace, "他")
+docs <- tm_map(docs, toSpace, "們")
+docs <- tm_map(docs, toSpace, "說")
+docs <- tm_map(docs, toSpace, "與")
+docs <- tm_map(docs, toSpace, "上")
+docs <- tm_map(docs, toSpace, "對")
+docs <- tm_map(docs, toSpace, "但")
+docs <- tm_map(docs, toSpace, "只")
+docs <- tm_map(docs, toSpace, "還")
+docs <- tm_map(docs, toSpace, "和")
+docs <- tm_map(docs, toSpace, "或")
+docs <- tm_map(docs, toSpace, "從")
+docs <- tm_map(docs, toSpace, "以")
+docs <- tm_map(docs, toSpace, "被")
+docs <- tm_map(docs, toSpace, "讓")
+docs <- tm_map(docs, toSpace, "將")
+docs <- tm_map(docs, toSpace, "更")
+docs <- tm_map(docs, toSpace, "為")
+docs <- tm_map(docs, toSpace, "及")
+docs <- tm_map(docs, toSpace, "這個")
+docs <- tm_map(docs, toSpace, "‧")
+docs <- tm_map(docs, toSpace, "我")
+docs <- tm_map(docs, toSpace, "是")
+docs <- tm_map(docs, toSpace, "看板")
+docs <- tm_map(docs, toSpace, "網址")
+docs <- tm_map(docs, toSpace, "標題")
+docs <- tm_map(docs, toSpace, "來")
+docs <- tm_map(docs, toSpace, "批踢踢實業坊")
+docs <- tm_map(docs, toSpace, "[a-zA-Z]")
+#移除標點符號(punctuation)
+#移除數字跟空白(digits) (white space)
+docs <- tm_map(docs, removePunctuation)
+docs <- tm_map(docs, removeNumbers)
+docs <- tm_map(docs, stripWhitespace)
+```
+
+
+##斷句
+
+```{r}
+mixseg = worker()
+jieba_tokenizer=function(d){
+  unlist(segment(d[[1]],mixseg))
+}
+seg = lapply(docs, jieba_tokenizer)
+
+freqFrame = as.data.frame(table(unlist(seg)))
+freqFrame = freqFrame[order(freqFrame$Freq,decreasing=TRUE), ]
+head(freqFrame)
+library(knitr)
+kable(head(freqFrame), format = "markdown")
+```
+
+
+##匯出文字雲
+
+```{r}
+par(family=("Heiti TC Light"))
+wordcloud(freqFrame$Var1,freqFrame$Freq,
+          scale=c(5,0.1),min.freq=20,max.words=180,
+          random.order=TRUE, random.color=FALSE,
+          rot.per=.1, colors=brewer.pal(8, "Dark2"),
+          ordered.colors=FALSE,use.r.layout=FALSE,
+          fixed.asp=TRUE)
+
+```
+
+##說明--PTT IA版（國際事物版）
+
+台灣媒體的閱聽人取向使得新聞變得注重「眼球經濟」，而缺乏深度報導和國際觀，國際性新聞少之又少，就算有也只是稍微提及，並不會深入探討，IA版是批踢踢上少見的、較多學術討論的國際事務版，裡面的內容滿值得一看，也可以了解國際時事，所以想推薦給大家。
+
+文字雲中的關鍵字：美國前國家安全顧問布熱津斯基（Zbigniew Kazimierz Brzeziński）26日逝世，終年89歲。布熱津斯基不僅是美國著名國際戰略學家、外交家，也是中美建交的親歷者和推動者之一。《紐約時報》形容稱，布熱津斯基與基辛格（Henry Kissinger）一樣，不是出生在美國的外交家，在白宮任職和離職後，都在全球事務方面具有相當大的影響力。
+
+
+
+
+
+
